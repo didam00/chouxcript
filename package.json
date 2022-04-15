@@ -1,0 +1,14 @@
+{
+  "name": "chouxcript",
+  "version": "1.0.0",
+  "description": "video editing open source with javascript",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "vanta",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.3"
+  }
+}

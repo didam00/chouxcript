@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  
+  <link rel="stylesheet" href="coloris/dist/coloris.min.css">
+  <script src="coloris/dist/coloris.min.js"></script>
+
+  <script src="http://code.jquery.com/jquery-latest.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+  <script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.8.1/dist/ffmpeg.min.js"></script>
+  <!-- <script src="https://raw.githubusercontent.com/gzuidhof/coi-serviceworker/master/coi-serviceworker.min.js"></script> -->
+  <style>
+    :root {
+      --point_color: #F61C41;
+    }
+  </style>
+  <link rel="stylesheet" href="style.css">
+  <script src="canvas.js"></script>
+  <script src="main.js"></script>
+  <script src="app.js"></script>
+  <title>chouxcript</title>
+</head>
+<body>
+  <!-- <div id='right_color' class="current_color"></div>
+  <div id='left_color' class="current_color"></div> -->
+  <div id="color_picker">
+    <input type="text" data-coloris value="#49c771">
+  </div>
+  <div id="config_interface" class="interface_tab">
+    <img class='quit_tab' src="assets/outline_clear.png">
+    <div class="title">영상 설정</div>
+    <table class="content">
+      <tr id="canvasWidth" variableType="number">
+        <td>캔버스 가로</td>
+        <td>캔버스의 폭을 설정합니다.</td>
+        <td contenteditable=""></td>
+      </tr>
+      <tr id="canvasHeight" variableType="number">
+        <td>캔버스 세로</td>
+        <td>캔버스의 높이를 설정합니다.</td>
+        <td contenteditable=""></td>
+      </tr>
+      <tr id="configMaxTime" variableType="number">
+        <td>비디오 길이</td>
+        <td>비디오의 최대 길이를 설정합니다. (ms)</td>
+        <td contenteditable=""></td>
+      </tr>
+    </table>
+    <div class="apply">완료</div>
+  </div>
+  <div id="settings_interface" class="interface_tab">
+    <img class='quit_tab' src="assets/outline_clear.png">
+    <div class="title">설정</div>
+    <!-- <div class="code fake">
+      settings = {
+        
+      }
+    </div>
+    <div class="code real" contenteditable="true">
+      settings = {
+        
+      }
+    </div> -->
+    <table class="content">
+      <tr id="developerMode" variableType="boolean">
+        <td>개발자 모드</td>
+        <td>커맨드가 발동되면 로그에 알림을 띄웁니다.</td>
+        <td></td>
+      </tr>
+      <tr id="realTime" variableType="boolean">
+        <td>리얼타임</td>
+        <td>프리뷰을 재생할 때 시계를 사용하여 설정한 시계에 맞게 끝내도록 합니다.</td>
+        <td></td>
+      </tr>
+      <tr id="clearlyExport" variableType="boolean">
+        <td>쾌적한 내보내기</td>
+        <td>내보내기가 작동 중 일때 필요없는 함수는 종료시킵니다.</td>
+        <td></td>
+      </tr>
+      <tr id="zoom_level" variableType="number">
+        <td>확대 레벨</td>
+        <td>한번에 얼마나 확대될 지 설정합니다.</td>
+        <td contenteditable></td>
+      </tr>
+      <tr id="max_logs" variableType="number">
+        <td>기록 보관 수</td>
+        <td>한 행동의 기록을 최대 몇 개까지 보관할 건지 설정합니다.</td>
+        <td contenteditable></td>
+      </tr>
+      <tr id="basicLineWidth" variableType="number">
+        <td>기본 선 두께</td>
+        <td>기본 선 두께를 설정합니다.</td>
+        <td contenteditable></td>
+      </tr>
+      <tr id="point_color" variableType="number">
+        <td>기본 색</td>
+        <td>시작할 때 기본 색을 설정합니다. (16진법 불가능)</td>
+        <td contenteditable></td>
+      </tr>
+    </table>
+    <div class="apply">완료</div>
+  </div>
+  <div id="export_interface" class="interface_tab">
+    <img class='quit_tab' src="assets/outline_clear.png">
+    <div class="title">내보내기</div>
+    <table class="content">
+      <tr id='exportFPS' variableType="number">
+        <td>프레임</td>
+        <td>영상의 초당 프레임입니다. 환경에 따라 낮아질 수 있습니다.</td>
+        <td contenteditable="true">60</td>
+      </tr>
+      <tr id='exportFileName' variableType="string">
+        <td>파일명</td>
+        <td>확장자는 빼고 작성하며 webm만 가능합니다.</td>
+        <td contenteditable="true">새 동영상</td>
+      </tr>
+      <tr id='exportStartTime' variableType="string">
+        <td>시작 지점</td>
+        <td>영상의 시작 지점을 정합니다.</td>
+        <td contenteditable="true">0</td>
+      </tr>
+      <tr id='exportEndTime' variableType="string">
+        <td>종료 지점</td>
+        <td>영상의 종료 지점을 정합니다.</td>
+        <td contenteditable="true">0</td>
+      </tr>
+    </table>
+    <div class="apply">확정</div>
+  </div>
+  <div id='cover'>
+    
+  </div>
+  <div id="export_cover">
+    <video id="video_recorded" controls></video>
+    <div class="state">
+      <div class="text">영상을 내보내는 중</div><div class="num">(0/0)</div>
+      <progress value='50' max="100"></progress>
+    </div>
+    <div class="cancle">취소</div>
+  </div>
+  <!-- <div id="code_tab">
+    <div class="name"></div>
+    <div class="code" contenteditable></div>
+  </div> -->
+  <div id="layers_tab">
+    <div id='layer1' class="layers">
+      <canvas class="layer_preview"></canvas>
+
+      <div class='layer_information'>
+        <div class="layer_name">layer_1</div>
+      </div>
+    </div>
+    <div class='add_layer'></div>
+  </div>
+  <div id="menu">
+    <img class="program_icon" src="assets/program_icon.png" style="float: left;">
+    <ul id="dropdown">
+      <li>
+        <a class='tabs'>파일</a>
+        <ul>
+          <li onclick=""><a class='subtabs'>저장</a></li>
+          <li onclick="system.showExportTab()"><a class='subtabs'>내보내기</a></li>
+          <li onclick="system.showSettingsTab()"><a class='subtabs'>설정</a></li>
+        </ul>
+      </li>
+      <li>
+        <a class='tabs'>편집</a>
+        <ul>
+          <li onclick="system.showConfigTab()"><a class='subtabs'>영상 설정</a></li>
+        </ul>
+      </li>
+      <li>
+        <a class='tabs'>비디오</a>
+        <ul>
+          <li onclick="preview.times = 0"><a class='subtabs'>0초로 돌아가기</a></li>
+        </ul>
+      </li>
+      <li>
+        <a class='tabs'>보기</a>
+        <ul>
+          <li onclick="system.fitScreen()"><a class='subtabs'>화면에 맞추기</a></li>
+          <li onclick="preview.zoom += settings.zoom_level"><a class='subtabs'>확대하기</a></li>
+          <li onclick="preview.zoom -= settings.zoom_level"><a class='subtabs'>축소하기</a></li>
+        </ul>
+      </li>
+    </ul>
+    <!-- <div class="tabs file">파일</div>
+    <div class="list">
+      <div id='save' class="list">저장 (Ctrl+S)</div>
+      <div id='export' class="list">내보내기 (Ctrl+E)</div>
+    </div>
+    <div class="tabs edit">편집</div> -->
+    <img class="tabs show_layers_tab" src="assets/show_layers_tab.png">
+    <img class="tabs start_button" src="assets/start_button.png">
+  </div>
+  <div id="toolbar">
+    <img id="select_object" class="tools" src="assets/select_object_icon.png" alt="요소 선택">
+    <img id="add_rectangle" class="tools" src="assets/add_object_icon-rectangle.png" alt="사각형 추가">
+    <img id="add_circle" class="tools" src="assets/add_object_icon-circle.png" alt="원 추가">
+    <img id="add_line" class="tools" src="assets/add_object_icon-line.png" alt="선 추가">
+  </div>
+  <div id="video_preview">
+    <div class="times"></div>
+    <canvas id='guide_line'></canvas>
+    <canvas id='canvas' width="1920" height="1080"></canvas>
+    <canvas id='fakeCanvas' width="1920" height="1080"></canvas>
+  </div>
+  <div id="video_preview_cover" ondrop="dropFunction(event);" ondragover="dragOverFunction(event)"></div>
+  <div id="video_information">
+
+  </div>
+  <div id="time_interface">
+    <div class="times current_time">00:00:00;00</div>
+    <div class="times end_time">00:00:05;00</div>
+    <div id="current_time_stick"></div>
+  </div>
+  <div id="bottom_timeline">
+    <div class="gauge"></div>
+  </div>
+</body>
+</html>
