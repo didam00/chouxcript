@@ -32,11 +32,10 @@ class VectorObject {
       y: y,
       width: width,
       height: height,
-      backgroundColor: system.mainColor,
+      backgroundColor: settings.randomColor ? '#'+fillZero(Math.round(Math.random()*0xffffff).toString(16), 6) : system.mainColor,
       rotate: 0,
       visible: true,
       opacity: 1,
-      center: [0.5, 0.5],
     }
     if(type == 'line') {
       this.property.lineWidth = settings.basicLineWidth;
@@ -85,7 +84,6 @@ class Picture {
       rotate: 0,
       visible: true,
       opacity: 1,
-      center: [0.5, 0.5],
       img: img,
       imageData: null,
     }
@@ -229,7 +227,7 @@ function addTimeline(obj, property, times, config={}, update=true) {
   return newTimeline;
 }
 
-function addFunc(obj, func, key) {
+function addFunc(obj, func, key, update=true) {
   let addFuncFunction = function (obj, func, key) {
     if(key == null) {
       key = 'func'+keys(obj.func).length;
@@ -243,7 +241,9 @@ function addFunc(obj, func, key) {
   } else {
     addFuncFunction(obj, func, key);
   }
-  newLog();
+  if(update) {
+    newLog();
+  }
   return func;
 }
 

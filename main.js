@@ -82,6 +82,7 @@ let system = {
   recordCancled: false,
   recordStartTime: 0,
   recordEndTime: 0,
+  transformedAnything: false,
 
   mainColor: '#49c771',
 
@@ -174,21 +175,23 @@ let system = {
     }
   },
   start() {
-    $('.start_button').toggleClass('active');
-    if($('.start_button').hasClass('active')) {
-      if(preview.times == video.maxTimes) {
-        preview.times = 0;
+    if(!system.transformedAnything) {
+      $('.start_button').toggleClass('active');
+      if($('.start_button').hasClass('active')) {
+        if(preview.times == video.maxTimes) {
+          preview.times = 0;
+        }
+        preview.onStart = true;
+        if(settings.autoFPS) settings.setFrameRate(system.lastFrameRate);
+        $('.start_button').attr('src', 'assets/stop_button.png');
+      } else {
+        recordCanvas();
+        preview.onStart = false;
+        $('.start_button').attr('src', 'assets/start_button.png');
       }
-      preview.onStart = true;
-      if(settings.autoFPS) settings.setFrameRate(system.lastFrameRate);
-      $('.start_button').attr('src', 'assets/stop_button.png');
-    } else {
-      recordCanvas();
-      preview.onStart = false;
-      $('.start_button').attr('src', 'assets/start_button.png');
+      system.realTime_startTime = new Date().getTime();
+      system.cancleAll();
     }
-    system.realTime_startTime = new Date().getTime();
-    system.cancleAll();
   },
   changeColor(hex) {
     $('#color_picker input')[0].value = hex;
@@ -228,6 +231,7 @@ let developer = {
 
 let selects = [];
 let select = null;
+system.selectClone = null;
 
 let objs = [];
 
@@ -247,6 +251,7 @@ let settings = {
   // autoFPS: true,
   realTime: false, // 프리뷰를 재생시킬 때 실제 시간에 맞춰서 재생 (녹화 중엔 강제 활성화)
   clearlyExport: true,
+  randomColor: true,
 }
 
 let config = {
@@ -299,6 +304,15 @@ window.onload = function () {
   // system.guideline[0].height = system.guideline.height();
 
   system.fitScreen();
+
+  $('#object_information .apply').click(function () {
+    for(let i = 0; i < $('#object_information tr').length; i++) {
+      let value = $('#object_information tr')[i].children[1].innerText;
+      if(value == 'true') value = true;
+      if(!_.isNaN(Number(value))) value = Number(value);
+      select.property[$('#object_information tr')[i].children[0].innerText] = value;
+    }
+  })
 
   $('.interface_tab .quit_tab').click(function () {
     $('#cover').fadeOut(150);
@@ -371,9 +385,11 @@ window.onload = function () {
   // global hotkeys
   $(document).on('keydown', function (event) {
     if(!($('#settings_interface').css('display') == 'block' || $('#export_interface').css('display') == 'block' || $('#config_interface').css('display') == 'block')) {
-    // console.log(event.which)
-    if(event.which >= 48 && event.which <= 57) {
+    if((event.which >= 48 && event.which <= 57)) {
       system.input += String.fromCharCode(event.which);
+    }
+    if(event.which == 190) {
+      system.input += '.';
     }
     // backspace
     if(event.which == 8) {
@@ -432,10 +448,10 @@ window.onload = function () {
 
     // ctrl + [
     if(event.keyCode == 219 && event.altKey) {
-      console.log('hello')
       for(let i = 0; i<selects.length; i++) {
         let pos = video.layers[system.current_layer].objects.indexOf(selects[i]);
         arrayPos(video.layers[system.current_layer].objects, pos, pos-1)
+        console.log(pos)
       }
     }
     
@@ -444,6 +460,7 @@ window.onload = function () {
       for(let i = 0; i<selects.length; i++) {
         let pos = video.layers[system.current_layer].objects.indexOf(selects[i]);
         arrayPos(video.layers[system.current_layer].objects, pos, pos+1)
+        console.log(pos)
       }
     }
     
@@ -452,12 +469,14 @@ window.onload = function () {
       if(system.now_log < system.logs.length - 1) {
         system.now_log += 1;
         video = system.logs[system.now_log].video;
+        drawing();
       }
       // ctrl + z
     } else if(event.ctrlKey && event.keyCode == 90) {
       if(system.now_log > 0) {
         system.now_log -= 1;
         video = system.logs[system.now_log].video;
+        drawing();
       }
     }
     // when press delete key
@@ -494,7 +513,7 @@ window.onload = function () {
       }
       // enter
       if(event.keyCode == 13) {
-        $('#menu .start_button').click();
+        system.start();
       }
     }
 
@@ -505,7 +524,7 @@ window.onload = function () {
     system.keyboard.spaceKey = event.keyCode == 32;
 
     // 브라우저 단축키 블락
-    if(event.keyCode != 122 && event.keyCode != 123) {
+    if(event.ctrlKey || event.altKey || event.shiftKey || event.keyCode == 13 || event.keyCode == 32 || event.keyCode == 116) {
       event.preventDefault();
     }
     }
@@ -737,7 +756,7 @@ window.onload = function () {
   
   $('#time_interface').on('mousedown', function (event) {
     if(preview.onStart) {
-      $('#menu .start_button').click();
+      system.start()
     }
     system.pointer.onTimeInterfaceDown = true;
     system.pointer.onTimeInterfaceTime = preview.times;
@@ -800,10 +819,10 @@ window.onload = function () {
 
 config.programLoopFunction = function () {
   // fps 조정
-  system.programTimeDifference = system.programRunTime - system.programLoopRunTime;
-  system.programRunTime = new Date().getTime() - system.programOpenTime;
-  system.programLoopRunTime += settings.frameRate;
-  system.currentFPS = 1000 / settings.frameRate;
+  // system.programTimeDifference = system.programRunTime - system.programLoopRunTime;
+  // system.programRunTime = new Date().getTime() - system.programOpenTime;
+  // system.programLoopRunTime += settings.frameRate;
+  // system.currentFPS = 1000 / settings.frameRate;
   
   // if(settings.autoFPS && preview.onStart) {
   //   if(settings.frameRate > 0) {
@@ -818,6 +837,11 @@ config.programLoopFunction = function () {
   //   settings.setFrameRate(1000/60)
   // }
 
+  if(preview.onStart || system.pointer.onTimeInterfaceDown) {
+    drawing();
+  }
+
+  if(!system.isRecording) {
   $('#fakeCanvas')[0].width = $('#video_preview_cover').width();
   $('#fakeCanvas')[0].height = $('#video_preview_cover').height();
   $('#fakeCanvas').width($('#fakeCanvas')[0].width);
@@ -830,21 +854,18 @@ config.programLoopFunction = function () {
   system.cursor = 'default'
   
   objs = video.layers[system.current_layer].objects;
-  // canvas refresh
-  // config.canvas.ctx.clearRect(0, 0, config.canvas.width, config.canvas.height);
+
+  system.transformedAnything = false;
+
   for(let i = 0; i < video.layers.length; i++) {
     for(let j = 0; j < video.layers[i].objects.length; j++) {
       let obj = video.layers[i].objects[j];
       if(obj.property.visible) {
-        if(preview.onStart || system.pointer.onTimeInterfaceDown) {
-          drawing();
-        } else {
-          // config.canvas.ctx.putImageData(preview.lastImageData, 0, 0);
-        }
         obj.clientX = obj.property.x * preview.zoom + config.canvas.canvas.position().left;
         obj.clientY = obj.property.y * preview.zoom + config.canvas.canvas.position().top + 32;
         if(!_.isEqual(obj.property, obj.before)) {
           obj.isTransformed = true;
+          system.transformedAnything = true;
         } else {
           obj.isTransformed = false;
         }
@@ -859,9 +880,10 @@ config.programLoopFunction = function () {
           let height = obj.property.height * preview.zoom;
           system.fakeCtx.strokeRect(x+1, y+1, width-1, height-1);
         }
+        // 오브젝트 클릭
         if(obj.onMouse && obj.isSelected) {
           system.cursor = 'move';
-          if(system.pointer.isDown) {
+          if(system.pointer.isDown && system.pointer.down.which == 1) {
             if(Math.abs(system.pointer.down.x - system.pointer.current.x) > 3 || Math.abs(system.pointer.down.y - system.pointer.current.y) > 3) {
               system.doing.includes('move_object') ? null : system.doing.push('move_object');
               system.doing.includes('moving_object') ? null : system.doing.push('moving_object');
@@ -1036,69 +1058,117 @@ config.programLoopFunction = function () {
   }
 
   if(system.keyboard.enterKey) {
-    if(system.doing.includes('move_object')) {
+    // if(system.doing.includes('move_object')) {
+    //   if(system.keyboard.altKey) {
+    //     let addSelects = [];
+    //     let objsLength = objs.length;
+    //     for(let i = 0; i<objsLength; i++) {
+    //       if(objs[i].isTransformed) {
+    //         let cloneSelect = _.cloneDeep(objs[i]);
+    //         addTimeline(cloneSelect, {
+    //           x: cloneSelect.property.x,
+    //           y: cloneSelect.property.y,
+    //         }, null, null, false)
+    //         for(let j = 0; j < keys(cloneSelect.transform).length; j++) {
+    //           cloneSelect.transform[keys(cloneSelect.transform)[j]] = 0;
+    //           objs[i].transform[keys(objs[i].transform)[j]] = 0;
+    //         }
+    //         video.layers[system.current_layer].objects.push(cloneSelect);
+    //         addSelects.push(cloneSelect);
+    //       }
+    //     }
+    //     system.selectedObject = selects.concat(addSelects);
+      // } else if(!_.isNaN(Number(system.input)) && Number(system.input) > 0) {
+      //   const systemInput = Number(system.input);
+      //   const currentTimes = preview.times;
+      //   for(let i = 0; i<objs.length; i++) {
+      //     const fromX = objs[i].before.x;
+      //     const fromY = objs[i].before.y;
+      //     const toX = objs[i].property.x;
+      //     const toY = objs[i].property.y;
+      //     if(objs[i].isTransformed) {
+      //       addFunc(objs[i], function (obj) {
+      //         if(currentTimes - systemInput <= preview.times && preview.times <= currentTimes) {
+      //           obj.property.x = fromX + (toX - fromX) * (1 - (currentTimes - preview.times) / systemInput);
+      //           obj.property.y = fromY + (toY - fromY) * (1 - (currentTimes - preview.times) / systemInput);
+      //         }
+      //       }, null, false);
+      //       addTimeline(objs[i], {
+      //         x: objs[i].property.x,
+      //         y: objs[i].property.y,
+      //       }, null, null, false);
+      //     } 
+      //   }
+      //   system.input = '';
+      // } else {
+    //     for(let i = 0; i<objs.length; i++) {
+    //       if(objs[i].isTransformed) {
+    //         addTimeline(objs[i], {
+    //           x: objs[i].property.x,
+    //           y: objs[i].property.y,
+    //         }, null, null, false)
+    //         for(let j = 0; j < keys(objs[i].transform).length; j++) {
+    //           objs[i].transform[keys(objs[i].transform)[j]] = 0;
+    //         }
+    //       }
+    //     }
+    //   }
+    //   newLog();
+    //   deleteArray(system.doing, 'move_object');
+    // }
+    if(system.transformedAnything) {
       if(system.keyboard.altKey) {
-        let addSelects = [];
-        let objsLength = objs.length;
-        for(let i = 0; i<objsLength; i++) {
-          if(objs[i].isTransformed) {
-            let cloneSelect = _.cloneDeep(objs[i]);
-            addTimeline(cloneSelect, {
-              x: cloneSelect.property.x,
-              y: cloneSelect.property.y,
-            }, null, null, false)
-            for(let j = 0; j < keys(cloneSelect.transform).length; j++) {
-              cloneSelect.transform[keys(cloneSelect.transform)[j]] = 0;
-              objs[i].transform[keys(objs[i].transform)[j]] = 0;
-            }
-            video.layers[system.current_layer].objects.push(cloneSelect);
-            addSelects.push(cloneSelect);
-          }
-        }
-        system.selectedObject = selects.concat(addSelects);
+
       } else if(!_.isNaN(Number(system.input)) && Number(system.input) > 0) {
         const systemInput = Number(system.input);
         const currentTimes = preview.times;
         for(let i = 0; i<objs.length; i++) {
-          const fromX = objs[i].before.x;
-          const fromY = objs[i].before.y;
-          const toX = objs[i].property.x;
-          const toY = objs[i].property.y;
           if(objs[i].isTransformed) {
+            let transProps = {}
+            let transBefores = {}
+            for(let j = 0; j < keys(objs[i].property).length; j++) {
+              let propertyName = keys(objs[i].property)[j];
+              if(objs[i].property[propertyName] != objs[i].before[propertyName]) {
+                transProps[propertyName] = objs[i].property[propertyName];
+                transBefores[propertyName] = objs[i].before[propertyName];
+                objs[i].transform[propertyName] = 0;
+              }
+            }
             addFunc(objs[i], function (obj) {
               if(currentTimes - systemInput <= preview.times && preview.times <= currentTimes) {
-                obj.property.x = fromX + (toX - fromX) * (1 - (currentTimes - preview.times) / systemInput);
-                obj.property.y = fromY + (toY - fromY) * (1 - (currentTimes - preview.times) / systemInput);
+                for(let j = 0; j < keys(transProps).length; j++) {
+                  let propertyName = keys(transProps)[j];
+                  if(typeof transProps[propertyName] == 'string' ? transProps[propertyName].indexOf('#') == 0 : false) {
+                    const color_r = Math.floor(getR(transBefores[propertyName]) + (getR(transProps[propertyName]) - getR(transBefores[propertyName])) * (1 - (currentTimes - preview.times) / systemInput));
+                    const color_g = Math.floor(getG(transBefores[propertyName]) + (getG(transProps[propertyName]) - getG(transBefores[propertyName])) * (1 - (currentTimes - preview.times) / systemInput));
+                    const color_b = Math.floor(getB(transBefores[propertyName]) + (getB(transProps[propertyName]) - getB(transBefores[propertyName])) * (1 - (currentTimes - preview.times) / systemInput));
+                    obj.property[propertyName] = '#'+fillZero((color_r).toString(16))+fillZero((color_g).toString(16))+fillZero((color_b).toString(16));
+                  } else {
+                    obj.property[propertyName] = transBefores[propertyName] + (transProps[propertyName] - transBefores[propertyName]) * (1 - (currentTimes - preview.times) / systemInput);
+                  }
+                }
               }
-            })
-            addTimeline(objs[i], {
-              x: objs[i].property.x,
-              y: objs[i].property.y,
-            }, null, null, false)
+            }, null, false);
+            addTimeline(objs[i], transProps, null, null, false);
           } 
         }
         system.input = '';
       } else {
-        for(let i = 0; i<objs.length; i++) {
+        for(let i = 0; i < objs.length; i++) {
           if(objs[i].isTransformed) {
-            addTimeline(objs[i], {
-              x: objs[i].property.x,
-              y: objs[i].property.y,
-            }, null, null, false)
-            for(let j = 0; j < keys(objs[i].transform).length; j++) {
-              objs[i].transform[keys(objs[i].transform)[j]] = 0;
+            let transProps = {}
+            for(let j = 0; j < keys(objs[i].property).length; j++) {
+              let propertyName = keys(objs[i].property)[j];
+              if(objs[i].property[propertyName] != objs[i].before[propertyName]) {
+                transProps[propertyName] = objs[i].property[propertyName];
+                objs[i].transform[propertyName] = 0;
+              }
             }
+            addTimeline(objs[i], transProps, null, null, false);
           }
         }
       }
       newLog();
-      deleteArray(system.doing, 'move_object');
-    }
-    if(system.doing.includes('picking_color')) {
-      $('.clr-picker').removeClass('clr-open');
-      addTimeline(selects, {
-        backgroundColor: system.mainColor,
-      })
     }
   }
 
@@ -1158,21 +1228,6 @@ config.programLoopFunction = function () {
     }
   }
   
-  // preview times
-  preview.times < 0 ? preview.times = 0 : preview.times;
-  preview.times > video.maxTimes ? preview.times = video.maxTimes : preview.times;
-
-  $('#video_preview .times').text(performance.times);
-  $('#bottom_timeline .gauge').width(preview.times / video.maxTimes*100 + '%')
-  $('#current_time_stick').css('left', preview.times / video.maxTimes*100 + '%')
-
-  if(system.showRemainTime) {
-    $('#time_interface .end_time').text('-' + tickToTime(video.maxTimes - preview.times));
-  } else {
-    $('#time_interface .end_time').text(tickToTime(video.maxTimes));
-  }
-  $('#time_interface .current_time').text(tickToTime(preview.times));
-
   // preview zoom
   config.canvas.canvas.height(config.canvas.height * preview.zoom);
   config.canvas.canvas.css('transform','translate(' + (- 50 - preview.position.x * settings.zoom_level) + '%, ' + (- 50 - preview.position.y * settings.zoom_level) + '%)');
@@ -1218,6 +1273,62 @@ config.programLoopFunction = function () {
     system.cursor = 'grab';
   }
 
+  for(let i = 0; i<system.delayFunction.length; i++) {
+    system.delayFunction[i]();
+  }
+
+  selects = system.selectedObject;
+
+  if(selects[selects.length - 1] == null) {
+    $('#object_information').hide();
+  } else {
+    if(system.selectClone == null ? true : !_.isEqual(system.selectClone.property, selects[selects.length - 1].property)) {
+      system.selectClone = _.cloneDeep(selects[selects.length - 1]);
+      $('#object_information table').html('');
+      $('#object_information').show();
+      $('#object_information .title').text(system.selectClone.type.join(' '));
+      for(let i = 0; i < keys(system.selectClone.property).length; i++) {
+        let newTableElm = $('<tr><td></td><td contenteditable></td></tr>');
+        let propertyName = keys(system.selectClone.property)[i];
+        let value = system.selectClone.property[propertyName];
+        $('#object_information table').append(newTableElm)
+        if(type(value) == 'array') {
+          value = value.join(', ')
+        }
+        if(value.toString().length > 12) {
+          value = value.toString().substr(0, 12) + '...'
+        }
+        // if(selects[selects.length - 1].property[propertyName].toString() != selects[selects.length - 1].before[propertyName].toString()) {
+        //   newTableElm.find('td:nth-child(1)').css('color', '#88f');
+        // }
+        
+        $('#object_information td')[i*2].innerHTML = propertyName
+        $('#object_information td')[i*2+1].innerHTML = value
+      }
+    }
+    $('#object_information').show();
+  }
+  
+  select = selects[selects.length - 1];
+  system.delayFunction = [];
+
+  } // 레코딩때는 작동X
+  
+  // preview times
+  preview.times < 0 ? preview.times = 0 : preview.times;
+  preview.times > video.maxTimes ? preview.times = video.maxTimes : preview.times;
+
+  $('#video_preview .times').text(performance.times);
+  $('#bottom_timeline .gauge').width(preview.times / video.maxTimes*100 + '%')
+  $('#current_time_stick').css('left', preview.times / video.maxTimes*100 + '%')
+
+  if(system.showRemainTime) {
+    $('#time_interface .end_time').text('-' + tickToTime(video.maxTimes - preview.times));
+  } else {
+    $('#time_interface .end_time').text(tickToTime(video.maxTimes));
+  }
+  $('#time_interface .current_time').text(tickToTime(preview.times));
+
   // export
 
   if(preview.onStart) {
@@ -1237,17 +1348,10 @@ config.programLoopFunction = function () {
       }
     }
     if(preview.times >= video.maxTimes) {
-      $('.start_button').click();
+      system.start();
     }
   }
 
-  for(let i = 0; i<system.delayFunction.length; i++) {
-    system.delayFunction[i]();
-  }
-
-  selects = system.selectedObject;
-  select = system.selectedObject[0];
-  system.delayFunction = [];
 }
 
 function tickToTime(tick) {
@@ -1258,8 +1362,12 @@ function tickToTime(tick) {
   return fillZero(h) + ':' + fillZero(m) + ':' + fillZero(s) + ';' + fillZero(ms);
 }
 
-function fillZero(num, length=2) {
-  return ('0'.repeat(length) + num).slice(-length);
+function fillZero(num, length=2, reverse=false) {
+  if(reverse) {
+    return (num + '0'.repeat(length)).slice(-length);
+  } else {
+    return ('0'.repeat(length) + num).slice(-length);
+  }
 }
 
 function createTable() {
@@ -1274,10 +1382,6 @@ function createTable() {
     newTable.appendChild(newTr);
   }
   return newTable;
-}
-
-Array.prototype.delete = function(content) {
-  return this.includes(content) ? this.splice(this.indexOf(content), 1) : false;
 }
 
 function deleteArray(arr, a) {
@@ -1342,7 +1446,7 @@ function drawing() {
           config.canvas.ctx.fillRect(obj.property.x, obj.property.y, obj.property.width, obj.property.height);
         } else if(obj.type.indexOf('circle') != -1) {
           config.canvas.ctx.beginPath();
-          config.canvas.ctx.ellipse(obj.property.x+obj.property.width/2, obj.property.y+obj.property.height/2, obj.property.width/2, obj.property.height/2, 0, 0, 2*Math.PI);
+          config.canvas.ctx.ellipse(obj.property.x+obj.property.width/2, obj.property.y+obj.property.height/2, obj.property.width/2, obj.property.height/2, Math.radians(obj.property.rotate), 0, 2*Math.PI);
           config.canvas.ctx.fill();
         } else if(obj.type.includes('line')) {
           config.canvas.ctx.lineWidth = obj.property.lineWidth;
@@ -1462,6 +1566,24 @@ function arrayPos(arr=[], fromPos=0, toPos=arr.length) {
   let objElm = arr.splice(fromPos, 1)[0]
   arr.splice(toPos, 0, objElm);
   return objElm;
+}
+
+function getR(code) {
+  return parseInt(code.substr(1, 2), 16)
+}
+function getG(code) {
+  return parseInt(code.substr(3, 2), 16)
+}
+function getB(code) {
+  return parseInt(code.substr(5, 2), 16)
+}
+
+Math.radians = function(degrees) {
+  return degrees * Math.PI / 180;
+};
+
+Math.degrees = function(radians) {
+  return radians * 180 / Math.PI;
 }
 
 let trashcan;
