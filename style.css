@@ -9,6 +9,7 @@
 * {
   user-select: none;
   -moz-window-dragging: none;
+  -webkit-user-drag: none;
   overflow: hidden;
   outline: none;
 }
@@ -30,7 +31,7 @@
 
 #menu .tabs {
   font-size: 12px;
-  color: #ffffff;
+  color: #f2f2f2;
   padding: 10px 13px 8px 13px;
   background-color: black;
   float: left;
@@ -46,6 +47,7 @@ a:-webkit-any-link {
   padding: 0;
   margin: 0;
   float: left;
+  height: 32px;
 }
 
 #menu #dropdown a {
@@ -72,7 +74,7 @@ a:-webkit-any-link {
   background: #000000e8;
   backdrop-filter: blur(10px);
   font-size: 12px;
-  color: white;
+  color: #e8e8e8;
 }
 
 #dropdown > li > ul > li:hover {
@@ -135,11 +137,13 @@ ul li {
   backdrop-filter: blur(10px);
   transition: all 300ms;
   max-height: 600px;
+  box-sizing: border-box;
+  border-bottom: 1px solid #444;
 }
 
 #layers_tab .layers {
-  padding: 15px 13px 11px 13px;
-  width: 160px;
+  padding: 10px 15px;
+  width: 22 0px;
   transition: all 150ms;
 }
 
@@ -147,20 +151,19 @@ ul li {
   background: #ffffff20;
 }
 
-#layers_tab .layers .layer_name {
-  font-weight: bold;
-}
-
 #layers_tab .layers .layer_preview {
-  width: 100%;
+  width: 100px;
   background: white;
+  float: left;
 }
 
 #layers_tab .layers .layer_information {
   font-size: 14px;
   color: #ffffff;
   font-family: consolas;
-  width: 160px;
+  width: 120px;
+  margin-left: 10px;
+  float: left;
 }
 
 #toolbar {
@@ -514,8 +517,8 @@ ul li {
   top: 0px;
   width: 100%;
   height: 100%;
-  background: #00000080;
-  backdrop-filter: blur(10px);
+  background: #000000c8;
+  backdrop-filter: blur(5px);
   z-index: 10;
   display: none;
 }

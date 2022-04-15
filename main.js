@@ -307,7 +307,7 @@ window.onload = function () {
   
   $('#settings_interface .apply').click(function () {
     for(let i = 0; i < $('#settings_interface tr').length; i++) {
-      let value = $('#settings_interface td:nth-child(3n)')[i].innerHTML;
+      let value = $('#settings_interface td:nth-child(3n)')[i].innerText;
       switch($($('#settings_interface tr')[i]).attr('variableType')) {
         case 'boolean': value = value == 'true'; break;
         case 'number': value = Number(value); break;
@@ -429,6 +429,23 @@ window.onload = function () {
       drawing();
       recordCanvas();
     }
+
+    // ctrl + [
+    if(event.keyCode == 219 && event.altKey) {
+      console.log('hello')
+      for(let i = 0; i<selects.length; i++) {
+        let pos = video.layers[system.current_layer].objects.indexOf(selects[i]);
+        arrayPos(video.layers[system.current_layer].objects, pos, pos-1)
+      }
+    }
+    
+    // ctrl + ]
+    if(event.keyCode == 221 && event.altKey) {
+      for(let i = 0; i<selects.length; i++) {
+        let pos = video.layers[system.current_layer].objects.indexOf(selects[i]);
+        arrayPos(video.layers[system.current_layer].objects, pos, pos+1)
+      }
+    }
     
     // ctrl + shift + z
     if(event.ctrlKey && event.shiftKey && event.keyCode == 90) {
@@ -446,7 +463,7 @@ window.onload = function () {
     // when press delete key
     if(selects.length > 0 && event.keyCode == 46) {
       for(let i = 0; i<selects.length; i++) {
-        video.layers[system.current_layer].objects.delete(selects[i]);
+        deleteArray(video.layers[system.current_layer].objects, selects[i]);
       }
       newLog();
     }
@@ -548,32 +565,27 @@ window.onload = function () {
     system.pointer.up.which = event.which; // 1: left, 2: middle, 3: right
 
     if(system.doing.includes('select_object_dragging')) {
-      for(let i = 0; i < objs.length; i++) {
-        let px1 = system.pointer.down.offsetX / preview.zoom;
-        let py1 = system.pointer.down.offsetY / preview.zoom;
-        let px2 = system.pointer.up.offsetX / preview.zoom;
-        let py2 = system.pointer.up.offsetY / preview.zoom;
-        if(px1 < px2) {
-          let px = px1;
-          px1 = px2;
-          px2 = px;
-        }
-        if(py1 < py2) {
-          let py = py1;
-          py1 = py2;
-          py2 = py;
-        }
-        if(objs[i].property.x + objs[i].property.width > px1 && objs[i].property.x < px2 && 
-           objs[i].property.y + objs[i].property.height > py1 && objs[i].property.y < py2) {
-          objs[i].isSelected = true;
-          selects.push(objs[i]);
-        } else {
-          if(system.keyboard.altKey) {
-            objs[i].isSelected = false;
+      let px1 = system.pointer.down.offsetX / preview.zoom;
+      let py1 = system.pointer.down.offsetY / preview.zoom;
+      let px2 = system.pointer.up.offsetX / preview.zoom;
+      let py2 = system.pointer.up.offsetY / preview.zoom;
+      if(px1 > px2) {let px = px1; px1 = px2; px2 = px;}
+      if(py1 > py2) {let py = py1; py1 = py2; py2 = py;}
+      if((py2 - py1 > 2) && (px2 - px1 > 2)) {
+        for(let i = 0; i < objs.length; i++) {
+          if(objs[i].property.x > px1 && objs[i].property.x + objs[i].property.width < px2 &&
+          objs[i].property.y > py1 && objs[i].property.y + objs[i].property.height < py2) {
+            console.log(objs[i])
+            objs[i].isSelected = true;
+            selects.push(objs[i]);
+          } else {
+            if(!system.keyboard.altKey) {
+              objs[i].isSelected = false;
+            }
           }
         }
       }
-      system.doing.delete('select_object_dragging')
+      deleteArray(system.doing, 'select_object_dragging')
     }
   })
 
@@ -640,8 +652,10 @@ window.onload = function () {
             if(system.doing.indexOf('move_object') == -1) {
               system.selectedObject = [];
             }
-            system.doing.push('select_object_dragging')
           }
+        }
+        if(!system.doing.includes('move_object')) {
+          system.doing.push('select_object_dragging')
         }
       }
       }
@@ -675,14 +689,14 @@ window.onload = function () {
           if(Math.abs(width) > 2 / preview.zoom || Math.abs(height) > 2 / preview.zoom) { // 실수 방지
             new VectorObject(x, y, width, height, system.drawMode)
           }
-          system.doing.delete('draw_object')
+          deleteArray(system.doing, 'draw_object')
         }
       })
     }
 
     // move canvas
     if(system.doing.includes('move_canvas')) {
-      system.doing.delete('move_canvas')
+      deleteArray(system.doing, 'move_canvas')
     }
   })
   
@@ -758,7 +772,7 @@ window.onload = function () {
 
   $('#video_preview_cover').on('wheel', function (event) {
     if(event.shiftKey) {
-      preview.position.x += event.originalEvent.deltaY / preview.zoom;
+      preview.position.x += event.originalEvent.deltaY / preview.zoom * settings.zoom_level * 10;
     } else if(event.altKey || event.ctrlKey) {
       if(event.originalEvent.deltaY < 0) {
         // wheeled up
@@ -768,7 +782,7 @@ window.onload = function () {
         preview.zoom -= settings.zoom_level;
       }
     } else {
-      preview.position.y += event.originalEvent.deltaY / preview.zoom;
+      preview.position.y += event.originalEvent.deltaY / preview.zoom * settings.zoom_level * 10;
     }
     
     if(preview.zoom < 0.01) preview.zoom = 0.01
@@ -809,7 +823,7 @@ config.programLoopFunction = function () {
   $('#fakeCanvas').width($('#fakeCanvas')[0].width);
   $('#fakeCanvas').height($('#fakeCanvas')[0].height);
 
-  $('#clr-picker').hasClass('clr-open') ? (!system.doing.includes('picking_color') ? system.doing.push('picking_color') : false) : system.doing.delete('picking_color');
+  $('#clr-picker').hasClass('clr-open') ? (!system.doing.includes('picking_color') ? system.doing.push('picking_color') : false) : deleteArray(system.doing, 'picking_color');
   
   $(document).css('cursor', system.cursor);
   $('#video_preview_cover').css('cursor', system.cursor);
@@ -852,8 +866,6 @@ config.programLoopFunction = function () {
               system.doing.includes('move_object') ? null : system.doing.push('move_object');
               system.doing.includes('moving_object') ? null : system.doing.push('moving_object');
             }
-          } else {
-            // system.doing.delete('moving_object');
           }
         }
       }
@@ -1018,7 +1030,7 @@ config.programLoopFunction = function () {
       if(!system.pointer.isDown) {
         selects[i].transform.x += moveX;
         selects[i].transform.y += moveY;
-        system.doing.delete('moving_object');
+        deleteArray(system.doing, 'moving_object');
       }
     }
   }
@@ -1063,9 +1075,9 @@ config.programLoopFunction = function () {
               x: objs[i].property.x,
               y: objs[i].property.y,
             }, null, null, false)
-          }
-          
+          } 
         }
+        system.input = '';
       } else {
         for(let i = 0; i<objs.length; i++) {
           if(objs[i].isTransformed) {
@@ -1080,7 +1092,7 @@ config.programLoopFunction = function () {
         }
       }
       newLog();
-      system.doing.delete('move_object');
+      deleteArray(system.doing, 'move_object');
     }
     if(system.doing.includes('picking_color')) {
       $('.clr-picker').removeClass('clr-open');
@@ -1134,12 +1146,15 @@ config.programLoopFunction = function () {
       let y = Math.round(system.pointer.down.y - 32);
       let width = Math.round(system.pointer.current.x - system.pointer.down.x);
       let height = Math.round(system.pointer.current.y - system.pointer.down.y);
-  
+      
       system.fakeCtx.strokeStyle = '#00ffff80';
       system.fakeCtx.fillStyle = '#00ffff20';
       system.fakeCtx.lineWidth = 1;
       system.fakeCtx.fillRect(x, y, width, height)
       system.fakeCtx.strokeRect(x, y, width, height)
+    }
+    if(system.doing.includes('move_object')) {
+      deleteArray(system.doing, 'select_object_dragging');
     }
   }
   
@@ -1263,6 +1278,10 @@ function createTable() {
 
 Array.prototype.delete = function(content) {
   return this.includes(content) ? this.splice(this.indexOf(content), 1) : false;
+}
+
+function deleteArray(arr, a) {
+  return arr.includes(a) ? arr.splice(arr.indexOf(a), 1) : false;
 }
 
 function newLog() {
@@ -1437,6 +1456,12 @@ function saveFile(fileName, content) {
   a.download = fileName+'.choux';
   a.href = objURL;
   a.click();
+}
+
+function arrayPos(arr=[], fromPos=0, toPos=arr.length) {
+  let objElm = arr.splice(fromPos, 1)[0]
+  arr.splice(toPos, 0, objElm);
+  return objElm;
 }
 
 let trashcan;
