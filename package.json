@@ -2,13 +2,16 @@
   "name": "chouxcript",
   "version": "1.0.0",
   "description": "video editing open source with javascript",
-  "main": "app.js",
+  "main": "server.js",
   "scripts": {
+    "backend": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "vanta",
   "license": "ISC",
   "dependencies": {
+    "@ffmpeg/core": "^0.10.0",
+    "@ffmpeg/ffmpeg": "^0.10.1",
     "express": "^4.17.3"
   }
 }

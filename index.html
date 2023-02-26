@@ -8,8 +8,8 @@
   <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
   <link rel="icon" href="favicon.ico" type="image/x-icon">
   
-  <link rel="stylesheet" href="coloris/dist/coloris.min.css">
-  <script src="coloris/dist/coloris.min.js"></script>
+  <link rel="stylesheet" href="./coloris/dist/coloris.min.css">
+  <script src="./coloris/dist/coloris.min.js"></script>
 
   <script src="http://code.jquery.com/jquery-latest.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
@@ -21,10 +21,9 @@
       --point_color: #F61C41;
     }
   </style>
-  <link rel="stylesheet" href="style.css">
-  <script src="canvas.js"></script>
-  <script src="main.js"></script>
-  <script src="app.js"></script>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./canvas.js"></script>
+  <script src="./main.js"></script>
   <title>chouxcript</title>
 </head>
 <body>
@@ -34,7 +33,7 @@
     <input type="text" data-coloris value="#49c771">
   </div>
   <div id="config_interface" class="interface_tab">
-    <img class='quit_tab' src="assets/outline_clear.png">
+    <img class='quit_tab' src="./assets/outline_clear.png">
     <div class="title">영상 설정</div>
     <table class="content">
       <tr id="canvasWidth" variableType="number">
@@ -56,7 +55,7 @@
     <div class="apply">완료</div>
   </div>
   <div id="settings_interface" class="interface_tab">
-    <img class='quit_tab' src="assets/outline_clear.png">
+    <img class='quit_tab' src="./assets/outline_clear.png">
     <div class="title">설정</div>
     <!-- <div class="code fake">
       settings = {
@@ -79,9 +78,9 @@
         <td>프리뷰을 재생할 때 시계를 사용하여 설정한 시계에 맞게 끝내도록 합니다.</td>
         <td></td>
       </tr>
-      <tr id="clearlyExport" variableType="boolean">
-        <td>쾌적한 내보내기</td>
-        <td>내보내기가 작동 중 일때 필요없는 함수는 종료시킵니다.</td>
+      <tr id="proRecording" variableType="boolean">
+        <td>향상된 내보내기</td>
+        <td>영상을 녹화하기 전, 프레임별로 이미지 데이터를 저장 후 플레이합니다. </td>
         <td></td>
       </tr>
       <tr id="zoom_level" variableType="number">
@@ -120,7 +119,7 @@
     <div class="apply">변형</div>
   </div>
   <div id="export_interface" class="interface_tab">
-    <img class='quit_tab' src="assets/outline_clear.png">
+    <img class='quit_tab' src="./assets/outline_clear.png">
     <div class="title">내보내기</div>
     <table class="content">
       <tr id='exportFPS' variableType="number">
@@ -132,6 +131,11 @@
         <td>파일명</td>
         <td>확장자는 빼고 작성하며 webm만 가능합니다.</td>
         <td contenteditable="true">새 동영상</td>
+      </tr>
+      <tr id='exportConvert' variableType="boolean">
+        <td>확장자 변환</td>
+        <td>확장자를 webm에서 mp4파일로 변환합니다.</td>
+        <td>true</td>
       </tr>
       <tr id='exportStartTime' variableType="string">
         <td>시작 지점</td>
@@ -171,7 +175,7 @@
     <div class='add_layer'></div>
   </div>
   <div id="menu">
-    <img class="program_icon" src="assets/program_icon.png" style="float: left;">
+    <img class="program_icon" src="./assets/program_icon.png" style="float: left;">
     <ul id="dropdown">
       <li>
         <a class='tabs'>파일</a>
@@ -208,14 +212,15 @@
       <div id='export' class="list">내보내기 (Ctrl+E)</div>
     </div>
     <div class="tabs edit">편집</div> -->
-    <img class="tabs show_layers_tab" src="assets/show_layers_tab.png">
-    <img class="tabs start_button" src="assets/start_button.png">
+    <img class="tabs show_layers_tab" src="./assets/show_layers_tab.png">
+    <img class="tabs start_button" src="./assets/start_button.png">
   </div>
   <div id="toolbar">
-    <img id="select_object" class="tools" src="assets/select_object_icon.png" alt="요소 선택">
-    <img id="add_rectangle" class="tools" src="assets/add_object_icon-rectangle.png" alt="사각형 추가">
-    <img id="add_circle" class="tools" src="assets/add_object_icon-circle.png" alt="원 추가">
-    <img id="add_line" class="tools" src="assets/add_object_icon-line.png" alt="선 추가">
+    <img id="select_object" class="tools" src="./assets/select_object_icon.png" alt="요소 선택">
+    <img id="add_rectangle" class="tools" src="./assets/add_object_icon-rectangle.png" alt="사각형 추가">
+    <img id="add_circle" class="tools" src="./assets/add_object_icon-circle.png" alt="원 추가">
+    <img id="add_line" class="tools" src="./assets/add_object_icon-line.png" alt="선 추가">
+    <img id="add_text" class="tools" src="./assets/add_object_icon-text.png" alt="글 추가">
   </div>
   <div id="video_preview">
     <div class="times"></div>

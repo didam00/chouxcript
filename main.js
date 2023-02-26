@@ -4,6 +4,8 @@ Coloris({
   margin: 10,
 })
 
+// server
+
 // // main.js
 // if ("serviceWorker" in navigator) {
 //   // Register service worker
@@ -115,31 +117,50 @@ let system = {
       system.streamData.push(event.data);
     }
 
-    system.mediaRecorder.onstop = (event) => {
+    system.mediaRecorder.onstop = async (event) => {
       if(!this.recordCancled) {
+        system.isRecording = false;
+        $('#export_cover .state .text').text('완료!');
+        preview.times = 0;
+        preview.onStart = false;
+
         const blob = new Blob(system.streamData);
-        const blobURL = window.URL.createObjectURL(blob);
+        let blobURL = window.URL.createObjectURL(blob);
   
-        $('#video_recorded')[0].src = blobURL;
         $('#video_recorded')[0].play();
         $('#video_recorded').animate({
           opacity: 1,
         }, 1000);
+
+        if($('#exportConvert td:nth-child(3)').text() == 'true') {
+          let convert = await webm2mp4({
+            url: blobURL,
+            fps: Number($('#exportFPS td[contenteditable]').text()),
+          });
+
+          console.log(convert)
+          trashcan = convert
+
+          blobURL = convert.url;
+        }
   
         const anchor = document.createElement('a');
         document.body.appendChild(anchor);
         anchor.style.display = 'none';
         anchor.href = blobURL;
-        anchor.download = $('#exportFileName td[contenteditable]').text()+'.webm';
+        
+        if($('#exportConvert td:nth-child(3)').text() == 'true') {
+          anchor.download = $('#exportFileName td[contenteditable]').text()+'.mp4';
+        } else {
+          anchor.download = $('#exportFileName td[contenteditable]').text()+'.webm';
+        }
         anchor.click();
+
+        $('#video_recorded')[0].src = blobURL;
   
         this.streamData = [];
         this.recordCancled = false;
-        
-        system.isRecording = false;
-        $('#export_cover .state .text').text('완료!');
-        preview.times = 0;
-        preview.onStart = false;
+        // URL.revokeObjectURL(blobURL);
       } else {
         developer.log('recording is cancled.');
       }
@@ -238,7 +259,7 @@ let objs = [];
 let settings = {
   zoom_level: 0.1,
   max_logs: 80,
-  point_color: 0xF61C41,
+  point_color: '#F61C41',
   frameRate: 1000/60,
   setFrameRate(a) {
     this.frameRate = a;
@@ -250,7 +271,7 @@ let settings = {
   basicLineWidth: 1,
   // autoFPS: true,
   realTime: false, // 프리뷰를 재생시킬 때 실제 시간에 맞춰서 재생 (녹화 중엔 강제 활성화)
-  clearlyExport: true,
+  proRecording: false,
   randomColor: true,
 }
 
@@ -298,18 +319,33 @@ window.onload = function () {
   config.canvas.canvas = $('#video_preview #canvas');
   config.canvas.ctx = config.canvas.canvas[0].getContext('2d');
   system.fakeCtx = $('#fakeCanvas')[0].getContext('2d');
-  // system.guideline = $('#video_preview #guide_line');
-  // system.guidelineCtx = system.guideline[0].getContext('2d');
-  // system.guideline[0].width = system.guideline.width();
-  // system.guideline[0].height = system.guideline.height();
 
   system.fitScreen();
+
+  $('#object_information').hover(function () {
+    if(system.doing.includes('moving_object')) {
+      $(this).css('opacity', 0.33);
+      $(this).css('backdrop-filter', 'none');
+    } else {
+      $(this).css('opacity', 1);
+      $(this).css('backdrop-filter', 'blur(10px)');
+    }
+  }, function () {
+    $(this).css('opacity', 1);
+    $(this).css('backdrop-filter', 'blur(10px)');
+  });
 
   $('#object_information .apply').click(function () {
     for(let i = 0; i < $('#object_information tr').length; i++) {
       let value = $('#object_information tr')[i].children[1].innerText;
       if(value == 'true') value = true;
       if(!_.isNaN(Number(value))) value = Number(value);
+      if(conditional(value, '==', ['false', 'true'], 'or') && $('#object_information tr')[i].children[0] != 'text') {
+        value = value == 'true';
+      }
+      if($('#object_information tr')[i].children[0].innerText == 'x') {
+
+      }
       select.property[$('#object_information tr')[i].children[0].innerText] = value;
     }
   })
@@ -319,6 +355,10 @@ window.onload = function () {
     $(this).parent().hide();
   })
   
+  $('.interface_tab tr[variableType="boolean"] td:nth-child(3n)').click(function () {
+    this.innerHTML = this.innerHTML == 'true' ? 'false' : 'true';
+  })
+
   $('#settings_interface .apply').click(function () {
     for(let i = 0; i < $('#settings_interface tr').length; i++) {
       let value = $('#settings_interface td:nth-child(3n)')[i].innerText;
@@ -329,10 +369,6 @@ window.onload = function () {
       settings[$($('#settings_interface tr')[i])[0].id] = value;
     }
     $('#settings_interface .quit_tab').click();
-  })
-
-  $('#settings_interface tr[variableType="boolean"] td:nth-child(3n)').click(function () {
-    this.innerHTML = this.innerHTML == 'true' ? 'false' : 'true';
   })
   
   $('#export_interface .apply').click(function () {
@@ -347,6 +383,7 @@ window.onload = function () {
     config.canvas.canvas[0].width = config.canvas.width;
     config.canvas.canvas[0].height = config.canvas.height;
     $('#config_interface .quit_tab').click();
+    drawing();
   })
 
   $('#export_cover .cancle').click(function () {
@@ -384,7 +421,7 @@ window.onload = function () {
 
   // global hotkeys
   $(document).on('keydown', function (event) {
-    if(!($('#settings_interface').css('display') == 'block' || $('#export_interface').css('display') == 'block' || $('#config_interface').css('display') == 'block')) {
+    if(event.target.tagName == 'BODY') {
     if((event.which >= 48 && event.which <= 57)) {
       system.input += String.fromCharCode(event.which);
     }
@@ -447,43 +484,47 @@ window.onload = function () {
     }
 
     // ctrl + [
-    if(event.keyCode == 219 && event.altKey) {
-      for(let i = 0; i<selects.length; i++) {
-        let pos = video.layers[system.current_layer].objects.indexOf(selects[i]);
+    if(event.keyCode == 219 && event.ctrlKey) {
+      for(let i = 0; i<system.selectedObject.length; i++) {
+        let pos = video.layers[system.current_layer].objects.indexOf(system.selectedObject[i]);
         arrayPos(video.layers[system.current_layer].objects, pos, pos-1)
-        console.log(pos)
       }
+      drawing();
     }
     
     // ctrl + ]
-    if(event.keyCode == 221 && event.altKey) {
-      for(let i = 0; i<selects.length; i++) {
-        let pos = video.layers[system.current_layer].objects.indexOf(selects[i]);
+    if(event.keyCode == 221 && event.ctrlKey) {
+      for(let i = 0; i<system.selectedObject.length; i++) {
+        let pos = video.layers[system.current_layer].objects.indexOf(system.selectedObject[i]);
         arrayPos(video.layers[system.current_layer].objects, pos, pos+1)
-        console.log(pos)
       }
+      drawing();
     }
     
     // ctrl + shift + z
     if(event.ctrlKey && event.shiftKey && event.keyCode == 90) {
       if(system.now_log < system.logs.length - 1) {
         system.now_log += 1;
-        video = system.logs[system.now_log].video;
-        drawing();
+        gotoLog(system.now_log)
+        // video = _.cloneDeep(system.logs[system.now_log].video);
+        // drawing();
       }
       // ctrl + z
     } else if(event.ctrlKey && event.keyCode == 90) {
       if(system.now_log > 0) {
         system.now_log -= 1;
-        video = system.logs[system.now_log].video;
-        drawing();
+        gotoLog(system.now_log)
+        // video = _.cloneDeep(system.logs[system.now_log].video);
+        // drawing();
       }
     }
-    // when press delete key
+
+    // delete key
     if(selects.length > 0 && event.keyCode == 46) {
       for(let i = 0; i<selects.length; i++) {
         deleteArray(video.layers[system.current_layer].objects, selects[i]);
       }
+      system.selectedObject = [];
       newLog();
     }
     if(!system.doing[0]) {
@@ -524,9 +565,20 @@ window.onload = function () {
     system.keyboard.spaceKey = event.keyCode == 32;
 
     // 브라우저 단축키 블락
+    } else if($('.interface_tab:visible')[0]) {
+      if(event.keyCode == 13) {
+        $('.interface_tab:visible .apply').click();
+      }
+      if(event.keyCode == 27) {
+        $('.interface_tab:visible .quit_tab').click();
+      }
+    } else if($(event.target).parents('#object_information').length > 0) {
+      if(event.keyCode == 13) {
+        $(event.target).parents('#object_information').children('.apply').click();
+      }
+    }
     if(event.ctrlKey || event.altKey || event.shiftKey || event.keyCode == 13 || event.keyCode == 32 || event.keyCode == 116) {
       event.preventDefault();
-    }
     }
   })
   
@@ -558,6 +610,7 @@ window.onload = function () {
       }
     }
 
+    // drawing_magnetic
     if(!system.keyboard.ctrlKey && !system.doing.includes('moving_object') && !system.pointer.onTimeInterfaceDown) {
       for(let i = 0; i<objs.length; i++) {
         if(objs[i].property.visible) {
@@ -729,7 +782,7 @@ window.onload = function () {
     if(system.current_tool == 'select_object') {
       for(let i = 0; i<video.layers[system.current_layer].objects.length; i++) {
         var obj = video.layers[system.current_layer].objects[i];
-        if(system.pointer.current.x > obj.clientX && system.pointer.current.x < obj.clientX + obj.property.width * preview.zoom && system.pointer.current.y > obj.clientY && system.pointer.current.y < obj.clientY + obj.property.height * preview.zoom) {
+        if(system.pointer.current.x >= obj.clientX && system.pointer.current.x <= obj.clientX + obj.property.width * preview.zoom && system.pointer.current.y >= obj.clientY && system.pointer.current.y <= obj.clientY + obj.property.height * preview.zoom) {
           obj.onMouse = true;
         } else {
           obj.onMouse = false;
@@ -857,6 +910,12 @@ config.programLoopFunction = function () {
 
   system.transformedAnything = false;
 
+  if(system.doing.includes('move_object') && system.doing.includes('draw_object')) {
+    system.cancleAll();
+    system.doing.push('draw_object')
+    // deleteArray(system.doing, 'move_object');
+  }
+
   for(let i = 0; i < video.layers.length; i++) {
     for(let j = 0; j < video.layers[i].objects.length; j++) {
       let obj = video.layers[i].objects[j];
@@ -870,7 +929,7 @@ config.programLoopFunction = function () {
           obj.isTransformed = false;
         }
         if(obj.isSelected || obj.onMouse || obj.isTransformed) {
-          system.fakeCtx.strokeStyle = '#f00';
+          system.fakeCtx.strokeStyle = '#ff000080';
           if(obj.isTransformed) system.fakeCtx.strokeStyle = '#00f'
           if(obj.isTransformed && obj.isSelected) system.fakeCtx.strokeStyle = '#f0f'
           system.fakeCtx.lineWidth = 1;
@@ -878,7 +937,15 @@ config.programLoopFunction = function () {
           let y = obj.clientY - 32;
           let width = obj.property.width * preview.zoom;
           let height = obj.property.height * preview.zoom;
-          system.fakeCtx.strokeRect(x+1, y+1, width-1, height-1);
+          system.fakeCtx.strokeRect(x, y, width, height);
+          system.fakeCtx.beginPath();
+          system.fakeCtx.moveTo(x, y);
+          system.fakeCtx.lineTo(x + width, y + height);
+          system.fakeCtx.stroke();
+          system.fakeCtx.beginPath();
+          system.fakeCtx.moveTo(x + width, y);
+          system.fakeCtx.lineTo(x, y + height);
+          system.fakeCtx.stroke();
         }
         // 오브젝트 클릭
         if(obj.onMouse && obj.isSelected) {
@@ -954,6 +1021,8 @@ config.programLoopFunction = function () {
   }
 
   if(system.doing.includes('moving_object')) {
+    system.cursor = 'move';
+    
     let moveX = (system.pointer.current.x - system.pointer.down.x) / preview.zoom;
     let moveY = (system.pointer.current.y - system.pointer.down.y) / preview.zoom;
     if(system.keyboard.shiftKey) {
@@ -1144,7 +1213,7 @@ config.programLoopFunction = function () {
                     const color_b = Math.floor(getB(transBefores[propertyName]) + (getB(transProps[propertyName]) - getB(transBefores[propertyName])) * (1 - (currentTimes - preview.times) / systemInput));
                     obj.property[propertyName] = '#'+fillZero((color_r).toString(16))+fillZero((color_g).toString(16))+fillZero((color_b).toString(16));
                   } else {
-                    obj.property[propertyName] = transBefores[propertyName] + (transProps[propertyName] - transBefores[propertyName]) * (1 - (currentTimes - preview.times) / systemInput);
+                    obj.property[propertyName] = Math.round((transBefores[propertyName] + (transProps[propertyName] - transBefores[propertyName]) * (1 - (currentTimes - preview.times) / systemInput))*100)/100;
                   }
                 }
               }
@@ -1160,6 +1229,14 @@ config.programLoopFunction = function () {
             for(let j = 0; j < keys(objs[i].property).length; j++) {
               let propertyName = keys(objs[i].property)[j];
               if(objs[i].property[propertyName] != objs[i].before[propertyName]) {
+                // if(objs[i].fixed_ratio) {
+                //   if(propertyName == 'width') {
+                //     transProps.height = objs[i].property.width * objs[i].property.ratio;
+                //   }
+                //   if(propertyName == 'height') {
+                //     transProps.width = objs[i].property.height / objs[i].property.ratio;
+                //   }
+                // }
                 transProps[propertyName] = objs[i].property[propertyName];
                 objs[i].transform[propertyName] = 0;
               }
@@ -1168,6 +1245,7 @@ config.programLoopFunction = function () {
           }
         }
       }
+      if(system.doing.includes('move_object')) deleteArray(system.doing, 'move_object');
       newLog();
     }
   }
@@ -1295,8 +1373,11 @@ config.programLoopFunction = function () {
         if(type(value) == 'array') {
           value = value.join(', ')
         }
-        if(value.toString().length > 12) {
-          value = value.toString().substr(0, 12) + '...'
+        if(type(value) == 'number') {
+          value = (Math.round(value*100))/100
+        }
+        if(value.toString().length > 11) {
+          value = value.toString().substr(0, 11) + '...'
         }
         // if(selects[selects.length - 1].property[propertyName].toString() != selects[selects.length - 1].before[propertyName].toString()) {
         //   newTableElm.find('td:nth-child(1)').css('color', '#88f');
@@ -1393,12 +1474,19 @@ function newLog() {
   system.now_log += 1;
   system.logs.push({
     video: _.cloneDeep(video),
+    selectedObject: system.selectedObject,
   })
   if(system.logs.length > settings.max_logs) {
     system.logs.shift();
   }
   drawing();
   recordCanvas();
+}
+
+function gotoLog(num) {
+  video = _.cloneDeep(system.logs[num].video);
+  system.selectedObject = _.cloneDeep(system.logs[num].selectedObject);
+  drawing();
 }
 
 var recordCanvas = () => {
@@ -1436,31 +1524,38 @@ function drawing() {
         }
       }
       for(let k = 0; k < keys(obj.func).length; k++) {
-        obj.func[keys(obj.func)](obj);
+        obj.func[keys(obj.func)[k]](obj);
       }
-      config.canvas.ctx.globalAlpha = obj.property.opacity;
-      if(obj.type.indexOf('vector') != -1) {
-        config.canvas.ctx.fillStyle = obj.property.backgroundColor;
-        config.canvas.ctx.strokeStyle = obj.property.backgroundColor;
-        if(obj.type.indexOf('rectangle') != -1) {
-          config.canvas.ctx.fillRect(obj.property.x, obj.property.y, obj.property.width, obj.property.height);
-        } else if(obj.type.indexOf('circle') != -1) {
-          config.canvas.ctx.beginPath();
-          config.canvas.ctx.ellipse(obj.property.x+obj.property.width/2, obj.property.y+obj.property.height/2, obj.property.width/2, obj.property.height/2, Math.radians(obj.property.rotate), 0, 2*Math.PI);
-          config.canvas.ctx.fill();
-        } else if(obj.type.includes('line')) {
-          config.canvas.ctx.lineWidth = obj.property.lineWidth;
-          config.canvas.ctx.beginPath();
-          config.canvas.ctx.moveTo(obj.property.x, obj.property.y);
-          config.canvas.ctx.lineTo(obj.property.x+obj.property.width, obj.property.y+obj.property.height);
-          config.canvas.ctx.stroke();
+      if(obj.property.visible) {
+        config.canvas.ctx.globalAlpha = obj.property.opacity;
+        if(obj.type.indexOf('vector') != -1) {
+          config.canvas.ctx.fillStyle = obj.property.backgroundColor;
+          config.canvas.ctx.strokeStyle = obj.property.backgroundColor;
+          if(obj.type.indexOf('rectangle') != -1) {
+            config.canvas.ctx.fillRect(obj.property.x+(obj.property.originX * obj.property.width), obj.property.y+(obj.property.originY * obj.property.height), obj.property.width, obj.property.height);
+          } else if(obj.type.indexOf('circle') != -1) {
+            config.canvas.ctx.beginPath();
+            config.canvas.ctx.ellipse(obj.property.x+obj.property.width/2+(obj.property.originX * obj.property.width),
+                                      obj.property.y+obj.property.height/2+(obj.property.originY * obj.property.height),
+                                      obj.property.width/2, obj.property.height/2, Math.radians(obj.property.rotate), 0, 2*Math.PI);
+            config.canvas.ctx.fill();
+          } else if(obj.type.includes('line')) {
+            config.canvas.ctx.lineWidth = obj.property.lineWidth;
+            config.canvas.ctx.beginPath();
+            config.canvas.ctx.moveTo(obj.property.x, obj.property.y);
+            config.canvas.ctx.lineTo(obj.property.x+obj.property.width, obj.property.y+obj.property.height);
+            config.canvas.ctx.stroke();
+          }
+        } else if(obj.type.indexOf('image') != -1) {
+          if(obj.imageData.width != obj.property.width || obj.imageData.height != obj.property.height) {
+            obj.updateData()
+          }
+          config.canvas.ctx.putImageData(obj.imageData, obj.property.x, obj.property.y)
+        } else if(obj.type.indexOf('video') != -1) {
+          config.canvas.ctx.drawImage(obj.video, obj.property.x, obj.property.y, obj.property.width, obj.property.height);
         }
-      } else if(obj.type.indexOf('image') != -1) {
-        config.canvas.ctx.putImageData(obj.property.imageData, obj.property.x, obj.property.y);
-      } else if(obj.type.indexOf('video') != -1) {
-        config.canvas.ctx.drawImage(obj.property.video, obj.property.x, obj.property.y, obj.property.width, obj.property.height);
+        obj.before = _.cloneDeep(obj.property);
       }
-      obj.before = _.cloneDeep(obj.property);
     }
   }
 }
@@ -1515,7 +1610,8 @@ async function dropFunction(event) {
             videoWidth = videoHeight * videoRatio;
           }
           
-          new VideoObject(config.canvas.width/2 - videoWidth/2, config.canvas.height/2 - videoHeight/2, videoWidth, videoHeight, video);
+          let obj = new VideoObject(config.canvas.width/2 - videoWidth/2, config.canvas.height/2 - videoHeight/2, videoWidth, videoHeight, video);
+          // video.
           window.URL.revokeObjectURL(video.src);
         }
       }
@@ -1586,6 +1682,109 @@ Math.degrees = function(radians) {
   return radians * 180 / Math.PI;
 }
 
+function sendData(a) {
+  $.ajax({
+    url: "/sendData",
+    type: "POST",
+    data: a,
+    dataType: "image/png",
+    success: function (res) {
+      console.log(res);
+    }
+  });
+}
+
+async function webm2mp4(videoData) {
+  let result;
+  await $.ajax({
+    url: '/convertingMP4',
+    type: 'POST',
+    data: {
+      url: videoData.url, // 서버로 webm의 blob 주소를 전송
+      fps: videoData.fps,
+    },
+    dataType: 'json',
+    success: function(res) {
+      result = res;
+      // 서버로부터 변환된 mp4의 주소를 취득
+    }
+  })
+  return result;
+}
+
+function conditional(a, operater, b, AndOr='and') {
+  let bool;
+  let err;
+  if(AndOr == 'or') {
+    bool = false;
+    if(type(b) != 'array') b = [b];
+    if(typeof operater == 'string' || operater.length == 1) {
+      if(operater == '=') operater = '==';
+      for(let i = 0; i < b.length; i++) {
+        switch (operater) {
+          case '==' : bool = bool || a == b[i]; break;
+          case '===' : bool = bool || a === b[i]; break;
+          case '!=' : bool = bool || a != b[i]; break;
+          case '>'  : bool = bool || a > b[i]; break;
+          case '<'  : bool = bool || a < b[i]; break;
+          case '>=' : bool = bool || a >= b[i]; break;
+          case '<=' : bool = bool || a <= b[i]; break;
+          default : err = 'operaterType';
+        }
+      }
+    } else {
+      for(let i = 0; i < b.length; i++) {
+        bool = bool || conditional(a, operater[i], b[i]);
+      }
+    }
+  } else if(AndOr == 'and') {
+    bool = true;
+    if(type(b) != 'array') b = [b];
+    if(typeof operater == 'string' || operater.length == 1) {
+      if(operater == '=') operater = '==';
+      for(let i = 0; i < b.length; i++) {
+        switch (operater) {
+          case '==' : bool = bool && a == b[i]; break;
+          case '===' : bool = bool && a === b[i]; break;
+          case '!=' : bool = bool && a != b[i]; break;
+          case '>'  : bool = bool && a > b[i]; break;
+          case '<'  : bool = bool && a < b[i]; break;
+          case '>=' : bool = bool && a >= b[i]; break;
+          case '<=' : bool = bool && a <= b[i]; break;
+          default : err = 'operaterType';
+        }
+      }
+    } else {
+      for(let i = 0; i < b.length; i++) {
+        bool = bool && conditional(a, operater[i], b[i]);
+      }
+    }
+  }
+  if(err != null) {
+    if(err == 'operaterType') console.error("Uncaught TypeError: '"+operater+"' is not a operater.")
+  } else {
+    return bool
+  }
+}
+
 let trashcan;
+
+// function Rectangle(width, height) {
+//   this.width = width;
+//   this.height = height;
+// }
+
+class Rectangle {
+  constructor(width, height) {
+    this.width = width;
+    this.height = height;
+  }
+
+  get S() {
+    return this.width*this.height;
+  }
+}
+
+let rect1 = new Rectangle;
 
 // 1.0.0

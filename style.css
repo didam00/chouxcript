@@ -176,16 +176,18 @@ ul li {
   background: #000000c0;
   padding: 8px;
   transition: all 150ms;
+  backdrop-filter: blur(10px);
 }
 
 /* #object_information:hover {
   opacity: 0.5;
+  backdrop-filter: none;
 } */
 
 #object_information .title {
   font-size: 14px;
   color: #ffffff;
-  font-family: consolas, Nanumsquare;
+  font-family: Nanumsquare;
   text-align: center;
   padding-bottom: 7px;
 }
@@ -198,29 +200,39 @@ ul li {
 }
 
 #object_information table td {
-  font-family: consolas;
+  font-family: Nanumsquare;
   font-size: 13px;
 }
 
 #object_information table td:nth-child(2n+1) {
   color: #eee;
-  width: 60%;
+  width: 50%;
+  text-align: left;
 }
 
 #object_information table td:nth-child(2n) {
-  color: #eee;
+  color: #a8a8a8;
+  transition: color 100ms;
+  text-align: left;
 }
 #object_information table td:nth-child(2n):hover {
-  background: #ffffff20;
+  color: #eee;
 }
 
 #object_information .apply {
   position: static;
   float: right;
-  width: 40px;
+  width: 35px;
   height: 14px;
   font-size: 14px;
   margin: 8px 0 0 0;
+  background: #ccc;
+  color: #181818;
+  border: 1px solid #404040;
+}
+
+#object_information .apply:hover {
+  background: #a0a0a0;
 }
 
 #toolbar {

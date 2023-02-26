@@ -27,6 +27,8 @@ class VectorObject {
     this.isSelected = false;
     this.transform = {};
     this.isTransformed = false;
+    this.layer = system.current_layer;
+    this.fixed_ratio = false;
     this.property = {
       x: x,
       y: y,
@@ -36,6 +38,9 @@ class VectorObject {
       rotate: 0,
       visible: true,
       opacity: 1,
+      originX: 0,
+      originY: 0,
+      ratio: width/height,
     }
     if(type == 'line') {
       this.property.lineWidth = settings.basicLineWidth;
@@ -49,6 +54,64 @@ class VectorObject {
     
     video.layers[system.current_layer].objects.push(this);
     this.addTimeline(_.cloneDeep(this.property), 0); // drawing 실행 때문에 마지막에 넣어야함
+
+    return this;
+  }
+
+  addTimeline(property, times, config) {
+    addTimeline(this, property, times, config);
+  }
+
+  addFunc(func, key) {
+    return addFunc(this, func, key);
+  }
+}
+
+class TextObject {
+  constructor(x, y, px, text) {
+    var body = this;
+    this.type = ['text'];
+    x == null ? x = (config.canvas.width - width)/2 : x = Math.round(x);
+    y == null ? y = (config.canvas.height - height)/2 : y = Math.round(y);
+    if(type != 'line') {
+      if(width < 0) {x += width; width = -width;}
+      if(height < 0) {y += height; height = -height;}
+    }
+    this.clientX = 0;
+    this.clientY = 0;
+    this.events = [];
+    this.onMouse = false;
+    this.isSelected = false;
+    this.transform = {};
+    this.isTransformed = false;
+    this.layer = system.current_layer;
+    this.property = {
+      x: x,
+      y: y,
+      px: px,
+      text: text,
+      fontFamily: consolas,
+      backgroundColor: settings.randomColor ? '#'+fillZero(Math.round(Math.random()*0xffffff).toString(16), 6) : system.mainColor,
+      rotate: 0,
+      visible: true,
+      opacity: 1,
+      originX: 0,
+      originY: 0,
+    }
+    if(type == 'line') {
+      this.property.lineWidth = settings.basicLineWidth;
+    }
+    this.timeline = [];
+    this.before = _.cloneDeep(this.property);
+    this.func = {};
+    for(let i = 0; i < Object.keys(this.property).length; i++) {
+      this.transform[Object.keys(this.property)[i]] = 0;
+    }
+    
+    video.layers[system.current_layer].objects.push(this);
+    this.addTimeline(_.cloneDeep(this.property), 0); // drawing 실행 때문에 마지막에 넣어야함
+
+    return this;
   }
 
   addTimeline(property, times, config) {
@@ -75,19 +138,22 @@ class Picture {
     this.events = [];
     this.onMouse = false;
     this.isSelected = false;
+    this.img = img;
+    this.imageData = null;
+    this.fixed_ratio = true;
     this.property = {
       x: x,
       y: y,
       width: width,
       height: height,
-      backgroundColor: system.mainColor,
       rotate: 0,
       visible: true,
       opacity: 1,
-      img: img,
-      imageData: null,
+      originX: 0,
+      originY: 0,
+      ratio: width/height,
     }
-    this.imageDataUpdate();
+    this.updateData();
     this.timeline = [];
     this.before = _.cloneDeep(this.property);
     this.transform = {};
@@ -99,15 +165,17 @@ class Picture {
     
     video.layers[system.current_layer].objects.push(this);
     this.addTimeline(_.cloneDeep(this.property), 0);
+
+    return this;
   }
 
-  imageDataUpdate() {
+  updateData() {
     let dummyCanvas = $('<canvas>');
     dummyCanvas[0].width = this.property.width;
     dummyCanvas[0].height = this.property.height;
     let dummyCtx = dummyCanvas[0].getContext('2d');
-    dummyCtx.drawImage(this.property.img, 0, 0, this.property.width, this.property.height);
-    this.property.imageData = dummyCtx.getImageData(0, 0, this.property.width, this.property.height);
+    dummyCtx.drawImage(this.img, 0, 0, this.property.width, this.property.height);
+    this.imageData = dummyCtx.getImageData(0, 0, this.property.width, this.property.height);
     dummyCanvas.remove();
     developer.log('load image successively');
     drawing();
@@ -137,18 +205,18 @@ class VideoObject {
     this.events = [];
     this.onMouse = false;
     this.isSelected = false;
+    this.currentTime = 0;
+    this.maxTime = videoElement.duration,
+    this.video = videoElement,
     this.property = {
       x: x,
       y: y,
       width: width,
       height: height,
-      backgroundColor: system.mainColor,
       rotate: 0,
       visible: true,
       opacity: 1,
       center: [0.5, 0.5],
-      video: videoElement,
-      imageData: null,
     }
     this.timeline = [];
     this.before = _.cloneDeep(this.property);
@@ -161,6 +229,8 @@ class VideoObject {
     
     video.layers[system.current_layer].objects.push(this);
     this.addTimeline(_.cloneDeep(this.property), 0);
+
+    return this;
   }
 
   addTimeline(property, times, config) {
@@ -254,4 +324,10 @@ function timeline(property) {
 const canvas = {
   timeline: timeline,
   addTimeline: addTimeline,
+}
+
+async function loadFonts(id, src) {
+  const font = new FontFace(id, 'url('+src+')');
+  await font.load();
+  document.fonts.add(font);
 }
